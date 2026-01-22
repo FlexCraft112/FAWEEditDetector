@@ -1,41 +1,66 @@
 package me.flexcraft.faweeditdetector;
 
+import net.luckperms.api.LuckPerms;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.File;
 
 public class FAWEditDetector extends JavaPlugin {
 
     private static FAWEditDetector instance;
-    private MySQLManager mySQL;
+
+    private LuckPerms luckPerms;
+    private MySQLManager mySQLManager;
 
     @Override
     public void onEnable() {
         instance = this;
+
         saveDefaultConfig();
 
-        File logsDir = new File(getDataFolder(), "logs");
-        if (!logsDir.exists()) logsDir.mkdirs();
-
-        mySQL = new MySQLManager(this);
-        if (!mySQL.connect()) {
-            getLogger().severe("Плагин отключён: MySQL не подключена");
-            getServer().getPluginManager().disablePlugin(this);
+        // LuckPerms
+        if (!setupLuckPerms()) {
+            getLogger().severe("LuckPerms не найден! Плагин отключён.");
+            Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
 
-        getServer().getPluginManager().registerEvents(
-                new FaweListener(this), this
+        // MySQL
+        mySQLManager = new MySQLManager(this);
+        mySQLManager.connect();
+        mySQLManager.createTable();
+
+        // Listener
+        Bukkit.getPluginManager().registerEvents(
+                new FaweListener(this, luckPerms),
+                this
         );
 
-        getLogger().info("FAWEditDetector запущен и готов к работе");
+        getLogger().info("FAWEditDetector успешно запущен.");
     }
 
-    public static FAWEditDetector get() {
+    @Override
+    public void onDisable() {
+        if (mySQLManager != null) {
+            mySQLManager.close();
+        }
+    }
+
+    private boolean setupLuckPerms() {
+        RegisteredServiceProvider<LuckPerms> provider =
+                Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+
+        if (provider == null) return false;
+
+        luckPerms = provider.getProvider();
+        return true;
+    }
+
+    public static FAWEditDetector getInstance() {
         return instance;
     }
 
-    public MySQLManager getMySQL() {
-        return mySQL;
+    public MySQLManager getMySQLManager() {
+        return mySQLManager;
     }
 }
