@@ -1,36 +1,22 @@
 package me.flexcraft.faweeditdetector;
 
-import net.luckperms.api.LuckPerms;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FAWEditDetector extends JavaPlugin {
 
-    private LuckPerms luckPerms;
+    private SQLiteManager sqlite;
 
     @Override
     public void onEnable() {
-        getLogger().info("Запуск FAWEditDetector...");
-
-        // config.yml
         saveDefaultConfig();
 
-        // LuckPerms
-        RegisteredServiceProvider<LuckPerms> provider =
-                Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+        getLogger().info("Запуск FAWEditDetector...");
 
-        if (provider == null) {
-            getLogger().severe("LuckPerms НЕ НАЙДЕН! Плагин отключён.");
-            Bukkit.getPluginManager().disablePlugin(this);
-            return;
-        }
+        sqlite = new SQLiteManager(this);
+        sqlite.init();
 
-        luckPerms = provider.getProvider();
-
-        // Listener
-        Bukkit.getPluginManager().registerEvents(
-                new CommandListener(this, luckPerms),
+        getServer().getPluginManager().registerEvents(
+                new CommandListener(this, sqlite),
                 this
         );
 
@@ -39,6 +25,9 @@ public class FAWEditDetector extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (sqlite != null) {
+            sqlite.close();
+        }
         getLogger().info("FAWEditDetector выключен.");
     }
 }
