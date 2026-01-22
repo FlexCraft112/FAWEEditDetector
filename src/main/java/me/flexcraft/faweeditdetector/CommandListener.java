@@ -1,10 +1,7 @@
 package me.flexcraft.faweeditdetector;
 
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.bukkit.BukkitPlayer;
-import com.sk89q.worldedit.math.BlockVector3;
 import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -17,65 +14,45 @@ import java.util.List;
 public class CommandListener implements Listener {
 
     private final FAWEditDetector plugin;
+    private final SQLiteManager sqlite;
     private final LuckPerms luckPerms;
 
-    public CommandListener(FAWEditDetector plugin, LuckPerms luckPerms) {
+    public CommandListener(FAWEditDetector plugin, SQLiteManager sqlite) {
         this.plugin = plugin;
-        this.luckPerms = luckPerms;
+        this.sqlite = sqlite;
+        this.luckPerms = LuckPermsProvider.get();
     }
 
     @EventHandler
-    public void onCommand(PlayerCommandPreprocessEvent e) {
-        Player player = e.getPlayer();
-        String cmd = e.getMessage().toLowerCase();
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        Player player = event.getPlayer();
+        String msg = event.getMessage().toLowerCase();
 
-        if (!cmd.startsWith("//")) return;
+        if (!msg.startsWith("//")) return;
 
         User user = luckPerms.getUserManager().getUser(player.getUniqueId());
         if (user == null) return;
 
-        List<String> watchGroups = plugin.getConfig().getStringList("watch-groups");
         String group = user.getPrimaryGroup();
 
-        if (!watchGroups.contains(group)) return;
+        List<String> watched = plugin.getConfig().getStringList("watch-groups");
+        if (!watched.contains(group)) return;
 
-        long volume = getSelectionVolume(player);
+        String world = player.getWorld().getName();
+        String command = event.getMessage();
 
-        plugin.getLogger().warning(
-                "[FAWE] " +
-                "Игрок=" + player.getName() +
-                " | Группа=" + group +
-                " | Мир=" + player.getWorld().getName() +
-                " | Команда=" + e.getMessage() +
-                " | Объём≈" + volume
+        sqlite.insertLog(
+                player.getName(),
+                group,
+                world,
+                command
         );
-    }
 
-    private long getSelectionVolume(Player player) {
-        try {
-            BukkitPlayer wePlayer = BukkitAdapter.adapt(player);
-            var session = WorldEdit.getInstance()
-                    .getSessionManager()
-                    .get(wePlayer);
-
-            BlockVector3 pos1 = session.getSelectionWorld() == null
-                    ? null
-                    : session.getSelection(session.getSelectionWorld()).getMinimumPoint();
-
-            BlockVector3 pos2 = session.getSelectionWorld() == null
-                    ? null
-                    : session.getSelection(session.getSelectionWorld()).getMaximumPoint();
-
-            if (pos1 == null || pos2 == null) return -1;
-
-            long x = Math.abs(pos1.getX() - pos2.getX()) + 1;
-            long y = Math.abs(pos1.getY() - pos2.getY()) + 1;
-            long z = Math.abs(pos1.getZ() - pos2.getZ()) + 1;
-
-            return x * y * z;
-
-        } catch (Exception ex) {
-            return -1;
-        }
+        Bukkit.getLogger().warning(
+                "[FAWEditDetector] FAWE: Игрок=" + player.getName() +
+                        " | Группа=" + group +
+                        " | Мир=" + world +
+                        " | Команда=" + command
+        );
     }
 }
