@@ -1,67 +1,53 @@
 package me.flexcraft.faweeditdetector;
 
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.model.user.User;
-import org.bukkit.Location;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-
-import java.util.List;
+import org.bukkit.entity.Player;
 
 public class FaweListener implements Listener {
 
     private final FAWEditDetector plugin;
-    private final LuckPerms luckPerms;
 
-    private final List<String> watchedGroups = List.of(
-            "ag",
-            "vlastilin",
-            "owner"
-    );
-
-    private final List<String> faweCommands = List.of(
-            "//set",
-            "//replace",
-            "//paste",
-            "//regen",
-            "//sphere",
-            "//cyl",
-            "//hcyl",
-            "//brush",
-            "//cut",
-            "//copy"
-    );
-
-    public FaweListener(FAWEditDetector plugin, LuckPerms luckPerms) {
+    public FaweListener(FAWEditDetector plugin) {
         this.plugin = plugin;
-        this.luckPerms = luckPerms;
     }
 
     @EventHandler
-    public void onFaweCommand(PlayerCommandPreprocessEvent event) {
+    public void onCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
         String cmd = event.getMessage().toLowerCase();
 
-        if (faweCommands.stream().noneMatch(cmd::startsWith)) return;
+        if (!cmd.startsWith("//") && !cmd.startsWith("/fawe")) return;
 
-        User user = luckPerms.getUserManager().getUser(player.getUniqueId());
-        if (user == null) return;
+        // проверка группы
+        String group = getGroup(player);
+        if (group == null) return;
 
-        String group = user.getPrimaryGroup();
-        if (!watchedGroups.contains(group)) return;
+        long blocks = 100000; // временно, дальше привяжем к FAWE API
 
-        Location loc = player.getLocation();
+        if (blocks < plugin.getConfig().getInt("alert.min-blocks")) return;
 
         plugin.getMySQLManager().insertLog(
                 player.getName(),
                 group,
-                cmd,
-                loc.getWorld().getName(),
-                loc.getBlockX(),
-                loc.getBlockY(),
-                loc.getBlockZ()
+                player.getWorld().getName(),
+                blocks,
+                player.getLocation().getBlockX(),
+                player.getLocation().getBlockY(),
+                player.getLocation().getBlockZ(),
+                player.getLocation().getBlockX(),
+                player.getLocation().getBlockY(),
+                player.getLocation().getBlockZ()
         );
+    }
+
+    private String getGroup(Player player) {
+        for (String group : plugin.getConfig().getStringList("watch-groups")) {
+            if (player.hasPermission("group." + group)) {
+                return group;
+            }
+        }
+        return null;
     }
 }
