@@ -16,7 +16,7 @@ public class FAWEditDetector extends JavaPlugin {
         mySQLManager = new MySQLManager(this);
 
         if (!mySQLManager.connect()) {
-            getLogger().severe("MySQL НЕ ПОДКЛЮЧЕНА! Плагин будет отключён.");
+            getLogger().severe("MySQL НЕ ПОДКЛЮЧЕНА! Плагин отключён.");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
@@ -27,11 +27,6 @@ public class FAWEditDetector extends JavaPlugin {
         );
 
         getLogger().info("FAWEditDetector успешно запущен.");
-    }
-
-    @Override
-    public void onDisable() {
-        getLogger().info("FAWEditDetector выключен.");
     }
 
     public MySQLManager getMySQLManager() {
