@@ -1,0 +1,5 @@
+name: FAWEditDetector
+version: 1.0
+main: me.flexcraft.faweeditdetector.FAWEditDetector
+api-version: 1.20
+depend: [FastAsyncWorldEdit, LuckPerms]
