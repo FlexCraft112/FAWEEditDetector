@@ -2,47 +2,43 @@ package me.flexcraft.faweeditdetector;
 
 import net.luckperms.api.LuckPerms;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FAWEditDetector extends JavaPlugin {
 
-    private SQLiteManager database;
     private LuckPerms luckPerms;
 
     @Override
     public void onEnable() {
+        getLogger().info("Запуск FAWEditDetector...");
+
+        // config.yml
         saveDefaultConfig();
 
-        luckPerms = Bukkit.getServicesManager()
-                .getRegistration(LuckPerms.class).getProvider();
+        // LuckPerms
+        RegisteredServiceProvider<LuckPerms> provider =
+                Bukkit.getServicesManager().getRegistration(LuckPerms.class);
 
-        database = new SQLiteManager(this);
-        database.connect();
-        database.createTable();
+        if (provider == null) {
+            getLogger().severe("LuckPerms НЕ НАЙДЕН! Плагин отключён.");
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
 
+        luckPerms = provider.getProvider();
+
+        // Listener
         Bukkit.getPluginManager().registerEvents(
-                new FaweListener(this, luckPerms), this
+                new CommandListener(this, luckPerms),
+                this
         );
 
-        startCleanupTask();
-        getLogger().info("FAWEditDetector запущен (SQLite)");
+        getLogger().info("FAWEditDetector успешно запущен.");
     }
 
-    private void startCleanupTask() {
-        if (!getConfig().getBoolean("cleanup.enabled")) return;
-
-        int minutes = getConfig().getInt("cleanup.interval-minutes");
-        int days = getConfig().getInt("cleanup.days");
-
-        Bukkit.getScheduler().runTaskTimerAsynchronously(
-                this,
-                () -> database.cleanupOldLogs(days),
-                20L,
-                minutes * 60L * 20L
-        );
-    }
-
-    public SQLiteManager getDatabase() {
-        return database;
+    @Override
+    public void onDisable() {
+        getLogger().info("FAWEditDetector выключен.");
     }
 }
