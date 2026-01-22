@@ -1,38 +1,28 @@
 package me.flexcraft.faweeditdetector;
 
-import net.luckperms.api.LuckPerms;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FAWEditDetector extends JavaPlugin {
 
-    private static FAWEditDetector instance;
-
-    private LuckPerms luckPerms;
     private MySQLManager mySQLManager;
 
     @Override
     public void onEnable() {
-        instance = this;
-
         saveDefaultConfig();
 
-        // LuckPerms
-        if (!setupLuckPerms()) {
-            getLogger().severe("LuckPerms не найден! Плагин отключён.");
+        getLogger().info("Запуск FAWEditDetector...");
+
+        mySQLManager = new MySQLManager(this);
+
+        if (!mySQLManager.connect()) {
+            getLogger().severe("MySQL НЕ ПОДКЛЮЧЕНА! Плагин будет отключён.");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
 
-        // MySQL
-        mySQLManager = new MySQLManager(this);
-        mySQLManager.connect();
-        mySQLManager.createTable();
-
-        // Listener
         Bukkit.getPluginManager().registerEvents(
-                new FaweListener(this, luckPerms),
+                new FaweListener(this),
                 this
         );
 
@@ -41,23 +31,7 @@ public class FAWEditDetector extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (mySQLManager != null) {
-            mySQLManager.close();
-        }
-    }
-
-    private boolean setupLuckPerms() {
-        RegisteredServiceProvider<LuckPerms> provider =
-                Bukkit.getServicesManager().getRegistration(LuckPerms.class);
-
-        if (provider == null) return false;
-
-        luckPerms = provider.getProvider();
-        return true;
-    }
-
-    public static FAWEditDetector getInstance() {
-        return instance;
+        getLogger().info("FAWEditDetector выключен.");
     }
 
     public MySQLManager getMySQLManager() {
