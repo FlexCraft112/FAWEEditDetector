@@ -1,87 +1,99 @@
 package me.flexcraft.faweeditdetector;
 
-import org.bukkit.configuration.file.FileConfiguration;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.Statement;
 
 public class MySQLManager {
 
-    private final FAWEditDetector plugin;
     private Connection connection;
+    private final FAWEditDetector plugin;
 
     public MySQLManager(FAWEditDetector plugin) {
         this.plugin = plugin;
     }
 
-    public void connect() {
+    public boolean connect() {
+        if (!plugin.getConfig().getBoolean("mysql.enabled")) {
+            plugin.getLogger().warning("MySQL отключён в config.yml");
+            return false;
+        }
+
         try {
-            FileConfiguration c = plugin.getConfig();
+            String host = plugin.getConfig().getString("mysql.host");
+            int port = plugin.getConfig().getInt("mysql.port");
+            String database = plugin.getConfig().getString("mysql.database");
+            String user = plugin.getConfig().getString("mysql.user");
+            String password = plugin.getConfig().getString("mysql.password");
+            boolean ssl = plugin.getConfig().getBoolean("mysql.useSSL");
 
-            String url = "jdbc:mysql://" +
-                    c.getString("mysql.host") + ":" +
-                    c.getInt("mysql.port") + "/" +
-                    c.getString("mysql.database") +
-                    "?useSSL=" + c.getBoolean("mysql.useSSL") +
-                    "&characterEncoding=utf8";
+            String url =
+                    "jdbc:mysql://" + host + ":" + port + "/" + database +
+                    "?useSSL=" + ssl +
+                    "&useUnicode=true" +
+                    "&characterEncoding=utf8" +
+                    "&autoReconnect=true" +
+                    "&serverTimezone=UTC";
 
-            connection = DriverManager.getConnection(
-                    url,
-                    c.getString("mysql.user"),
-                    c.getString("mysql.password")
+            connection = DriverManager.getConnection(url, user, password);
+
+            if (connection == null) {
+                plugin.getLogger().severe("MySQL connection == null");
+                return false;
+            }
+
+            createTable();
+
+            plugin.getLogger().info("MySQL подключена успешно");
+            return true;
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("Ошибка подключения к MySQL!");
+            e.printStackTrace();
+            connection = null;
+            return false;
+        }
+    }
+
+    private void createTable() {
+        if (connection == null) {
+            plugin.getLogger().severe("MySQL не подключена, таблица не создана");
+            return;
+        }
+
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS fawe_edits (" +
+                            "id INT AUTO_INCREMENT PRIMARY KEY," +
+                            "player VARCHAR(32) NOT NULL," +
+                            "uuid VARCHAR(36) NOT NULL," +
+                            "group_name VARCHAR(32) NOT NULL," +
+                            "world VARCHAR(64) NOT NULL," +
+                            "blocks BIGINT NOT NULL," +
+                            "min_x INT NOT NULL," +
+                            "min_y INT NOT NULL," +
+                            "min_z INT NOT NULL," +
+                            "max_x INT NOT NULL," +
+                            "max_y INT NOT NULL," +
+                            "max_z INT NOT NULL," +
+                            "time TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                            ")"
             );
-
-            plugin.getLogger().info("MySQL подключён.");
-
         } catch (Exception e) {
-            plugin.getLogger().severe("Ошибка MySQL!");
+            plugin.getLogger().severe("Ошибка создания таблицы MySQL");
             e.printStackTrace();
         }
     }
 
-    public void createTable() {
-        try (Statement st = connection.createStatement()) {
-            st.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS fawe_logs (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    player VARCHAR(32),
-                    `group` VARCHAR(32),
-                    command TEXT,
-                    world VARCHAR(32),
-                    x INT,
-                    y INT,
-                    z INT,
-                    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void insertLog(String player, String group, String command,
-                          String world, int x, int y, int z) {
-        try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO fawe_logs (player, `group`, command, world, x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        )) {
-            ps.setString(1, player);
-            ps.setString(2, group);
-            ps.setString(3, command);
-            ps.setString(4, world);
-            ps.setInt(5, x);
-            ps.setInt(6, y);
-            ps.setInt(7, z);
-            ps.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void close() {
+    public boolean isConnected() {
         try {
-            if (connection != null) connection.close();
-        } catch (Exception ignored) {}
+            return connection != null && !connection.isClosed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Connection getConnection() {
+        return connection;
     }
 }
