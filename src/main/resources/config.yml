@@ -1,8 +1,19 @@
 mysql:
   enabled: true
-  host: "localhost"
+  host: "mysql-de-fra9.joinserver.xyz"
   port: 3306
-  database: "fawe_logs"
-  user: "root"
-  password: "password"
+  database: "s259153_FAWEDetector"
+  user: "u259153_kdtHPFkEin"
+  password: "cyZrRalQ=z=tWifYkzOIJBCn"
   useSSL: false
+
+# ГРУППЫ, ЗА КОТОРЫМИ СЛЕДИМ
+# можешь дописывать сколько угодно
+watch-groups:
+  - ag
+  - vlastilin
+  - owner
+
+# Минимум блоков, после которого логируется
+alert:
+  min-blocks: 100000
