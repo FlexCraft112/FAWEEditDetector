@@ -1,19 +1,16 @@
-mysql:
-  enabled: true
-  host: "mysql-de-fra9.joinserver.xyz"
-  port: 3306
-  database: "s259153_FAWEDetector"
-  user: "u259153_kdtHPFkEin"
-  password: "cyZrRalQ=z=tWifYkzOIJBCn"
-  useSSL: false
+database:
+  type: SQLITE
+  file: "database.db"
 
-# ГРУППЫ, ЗА КОТОРЫМИ СЛЕДИМ
-# можешь дописывать сколько угодно
+cleanup:
+  enabled: true
+  days: 30          # удалять логи старше 30 дней
+  interval-minutes: 60  # проверка раз в 60 минут
+
 watch-groups:
   - ag
   - vlastilin
   - owner
 
-# Минимум блоков, после которого логируется
 alert:
   min-blocks: 100000
