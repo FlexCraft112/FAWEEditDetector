@@ -1,53 +1,49 @@
 package me.flexcraft.faweeditdetector;
 
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.model.user.User;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.entity.Player;
+import com.fastasyncworldedit.core.event.extent.EditSessionEvent;
 
 public class FaweListener implements Listener {
 
     private final FAWEditDetector plugin;
+    private final LuckPerms lp;
 
-    public FaweListener(FAWEditDetector plugin) {
+    public FaweListener(FAWEditDetector plugin, LuckPerms lp) {
         this.plugin = plugin;
+        this.lp = lp;
     }
 
     @EventHandler
-    public void onCommand(PlayerCommandPreprocessEvent event) {
-        Player player = event.getPlayer();
-        String cmd = event.getMessage().toLowerCase();
+    public void onFawe(EditSessionEvent e) {
+        if (!(e.getActor() instanceof com.fastasyncworldedit.core.actor.PlayerActor actor)) return;
 
-        if (!cmd.startsWith("//") && !cmd.startsWith("/fawe")) return;
+        String name = actor.getName();
+        User user = lp.getUserManager().getUser(actor.getUniqueId());
+        if (user == null) return;
 
-        // проверка группы
-        String group = getGroup(player);
-        if (group == null) return;
+        String group = user.getPrimaryGroup();
+        if (!plugin.getConfig().getStringList("watch-groups").contains(group)) return;
 
-        long blocks = 100000; // временно, дальше привяжем к FAWE API
-
+        int blocks = e.getExtent().getBlockCount();
         if (blocks < plugin.getConfig().getInt("alert.min-blocks")) return;
 
-        plugin.getMySQLManager().insertLog(
-                player.getName(),
+        plugin.getDatabase().insertLog(
+                name,
+                actor.getUniqueId().toString(),
                 group,
-                player.getWorld().getName(),
+                actor.getWorld().getName(),
                 blocks,
-                player.getLocation().getBlockX(),
-                player.getLocation().getBlockY(),
-                player.getLocation().getBlockZ(),
-                player.getLocation().getBlockX(),
-                player.getLocation().getBlockY(),
-                player.getLocation().getBlockZ()
+                actor.getLocation().getBlockX(),
+                actor.getLocation().getBlockY(),
+                actor.getLocation().getBlockZ()
         );
-    }
 
-    private String getGroup(Player player) {
-        for (String group : plugin.getConfig().getStringList("watch-groups")) {
-            if (player.hasPermission("group." + group)) {
-                return group;
-            }
-        }
-        return null;
+        plugin.getLogger().warning(
+                "[FAWE] " + name + " (" + group + ") изменил " + blocks +
+                        " блоков в мире " + actor.getWorld().getName()
+        );
     }
 }
